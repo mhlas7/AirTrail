@@ -50,6 +50,7 @@
     "@trpc/client": "^10.45.2",
     "@trpc/server": "^10.45.2",
     "@turf/turf": "^7.2.0",
+    "@vite-pwa/sveltekit": "^1.0.1",
     "bits-ui": "^1.8.0",
     "clsx": "^2.1.1",
     "cobe": "^0.6.4",
