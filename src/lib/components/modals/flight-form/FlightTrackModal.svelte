@@ -1,14 +1,22 @@
 <script lang="ts">
-  import { FileUp, Route, Trash2 } from '@o7/icon/lucide';
+  import { TZDate } from '@date-fns/tz';
+  import { Clock, FileUp, Route, Trash2 } from '@o7/icon/lucide';
+  import { format } from 'date-fns';
+  import { toast } from 'svelte-sonner';
   import type { SuperForm } from 'sveltekit-superforms';
 
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
   import { Modal, ModalBody, ModalHeader } from '$lib/components/ui/modal';
   import { findAutomaticTrackCandidate } from '$lib/track/candidates';
+  import { deriveFlightTimesFromTrack } from '$lib/track/derive-times';
   import { parseTrackFile, type ParsedTrackCandidate } from '$lib/track/parser';
   import type { FlightTrackInput } from '$lib/track/schema';
-  import { formatDateTime, getPreferences } from '$lib/utils/preferences';
+  import {
+    formatDateTime,
+    formatTime,
+    getPreferences,
+  } from '$lib/utils/preferences';
   import { isSmallScreen } from '$lib/utils/size';
   import type { FlightFormData } from '$lib/zod/flight';
 
@@ -54,6 +62,81 @@
       ...current,
       track: nextTrack,
     }));
+  };
+
+  // Reconstruct the actual milestone times from the track's timestamps and
+  // altitude/ground data, filling only empty Actual cells (non-destructive).
+  // Departure-side times use the departure airport timezone, arrival-side the
+  // arrival airport's — same as the flight-number lookup's prefill.
+  const deriveTimes = () => {
+    if (!track) return;
+
+    const result = deriveFlightTimesFromTrack(track);
+    if (result.reasons.noTimes) {
+      toast.error("This track has no timestamps, so times can't be derived.");
+      return;
+    }
+
+    const fd = $formData;
+    const milestones = [
+      {
+        seconds: result.gateDeparture,
+        tz: fd.from?.tz,
+        dateField: 'departure',
+        timeField: 'departureTime',
+        current: fd.departure,
+        label: 'gate departure',
+      },
+      {
+        seconds: result.takeoff,
+        tz: fd.from?.tz,
+        dateField: 'takeoffActual',
+        timeField: 'takeoffActualTime',
+        current: fd.takeoffActual,
+        label: 'takeoff',
+      },
+      {
+        seconds: result.landing,
+        tz: fd.to?.tz,
+        dateField: 'landingActual',
+        timeField: 'landingActualTime',
+        current: fd.landingActual,
+        label: 'landing',
+      },
+      {
+        seconds: result.gateArrival,
+        tz: fd.to?.tz,
+        dateField: 'arrival',
+        timeField: 'arrivalTime',
+        current: fd.arrival,
+        label: 'gate arrival',
+      },
+    ] as const;
+
+    const patch: Partial<FlightFormData> = {};
+    const filled: string[] = [];
+    for (const milestone of milestones) {
+      if (milestone.seconds === null || !milestone.tz || milestone.current) {
+        continue;
+      }
+      const instant = new TZDate(milestone.seconds * 1000, milestone.tz);
+      patch[milestone.dateField] = format(
+        instant,
+        "yyyy-MM-dd'T'00:00:00.000'Z'",
+      );
+      patch[milestone.timeField] = formatTime(instant, prefs, milestone.tz);
+      filled.push(milestone.label);
+    }
+
+    if (filled.length === 0) {
+      toast.info(
+        'No new times to fill — existing values kept, or not derivable.',
+      );
+      return;
+    }
+
+    formData.update((current) => ({ ...current, ...patch }));
+    toast.success(`Filled ${filled.join(', ')} from the track.`);
   };
 
   const automaticCandidate = (candidates: ParsedTrackCandidate[]) => {
@@ -247,6 +330,25 @@
           class="rounded-md border border-dashed px-3 py-5 text-center text-sm text-muted-foreground"
         >
           No track attached
+        </div>
+      {/if}
+
+      {#if trackSummary?.hasTimes}
+        <div class="space-y-1.5">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            class="w-full"
+            onclick={deriveTimes}
+          >
+            <Clock size={14} />
+            Derive times from track
+          </Button>
+          <p class="text-xs text-muted-foreground">
+            Fills empty gate, takeoff, and landing times from the track's
+            timestamps. Gate times are approximate.
+          </p>
         </div>
       {/if}
 
