@@ -2,7 +2,7 @@
 // Generates the airport-style sprite PNGs (chevrons, PAPI bar, windsock).
 // Run when adjusting the icon designs.
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const sharpModule = await import(process.env.SHARP_PATH ?? 'sharp').catch(
@@ -42,10 +42,6 @@ const papi = `
   <circle cx="21" cy="4" r="2.2" fill="#ef4444" stroke="#1f2937" stroke-width="0.6"/>
 </svg>`;
 
-// AirTrail's own logo (Lucide tower-control in the brand blue), shared with the
-// favicon and app icons.
-const tower = readFileSync(join(process.cwd(), 'static/favicon.svg'), 'utf8');
-
 // Windsock: red/white striped cone widening from pole to open end. Dark pole +
 // outline keep it readable on both light and dark basemaps.
 const windsock = `
@@ -69,7 +65,6 @@ const ICONS = [
   { id: 'chevron-yellow', svg: chevron('#facc15') },
   { id: 'papi', svg: papi },
   { id: 'windsock', svg: windsock },
-  { id: 'tower', svg: tower },
 ];
 
 for (const { id, svg } of ICONS) {

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-// Generates the PNG favicons and the PWA / home-screen icons for the app and
-// the docs site from static/favicon.svg.
+// Generates every PNG of the logo from static/favicon.svg: the favicons, the
+// PWA / home-screen icons, the docs site icons and the map's tower marker.
 // The logo is Lucide's tower-control icon: https://lucide.dev/icons/tower-control
 // Run after changing the logo: bun scripts/other/generate-app-icons.js
 
@@ -30,6 +30,9 @@ const ICONS = [
   { file: 'static/apple-touch-icon.png', size: 180, scale: 0.68 },
   { file: 'docs/app/icon.png', size: 256, background: null },
   { file: 'docs/public/logo.png', size: 256, background: null },
+  // Control-tower marker on the map (airport-style sprite, @1x and @2x).
+  { file: 'static/airport-style/tower.png', size: 24, background: null },
+  { file: 'static/airport-style/tower@2x.png', size: 48, background: null },
 ];
 
 const svg = readFileSync(join(ROOT, 'static/favicon.svg'));
